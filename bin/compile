@@ -27,8 +27,9 @@ if [ ! -f "$cache_dir/s3_built" ]; then
 	export LD_RUN_PATH=$cache_dir/lib:$cache_dir/usr/lib:$LD_RUN_PATH
 	export PATH=$cache_dir/bin:$cache_dir/usr/bin:$cache_dir/usr/sbin:$cache_dir/usr/local/sbin:$cache_dir/usr/local/bin:$PATH
 
-	cd /tmp && curl -O https://github.com/libfuse/libfuse/releases/download/fuse-2.9.7/fuse-2.9.7.tar.gz
-	cd /tmp && curl -O https://codeload.github.com/s3fs-fuse/s3fs-fuse/tar.gz/master
+	cd /tmp && curl -s -O https://codeload.github.com/libfuse/libfuse/tar.gz/fuse-2.9.7
+  mv /tmp/fuse-2.9.7 /tmp/fuse-2.9.7.tar.gz
+	cd /tmp && curl -s -O https://codeload.github.com/s3fs-fuse/s3fs-fuse/tar.gz/master
 	mv /tmp/master /tmp/s3fuse.tar.gz
 
 	rm -rf /tmp/fuse
@@ -37,8 +38,8 @@ if [ ! -f "$cache_dir/s3_built" ]; then
 	mkdir /tmp/s3
 	mkdir -pv $cache_dir
 
-	cd /tmp && tar -xzvf fuse-2.9.7.tar.gz -C /tmp/fuse
-	cd /tmp && tar -xzvf s3fuse.tar.gz -C /tmp/s3
+	cd /tmp && tar -xvf fuse-2.9.7.tar.gz -C /tmp/fuse
+	cd /tmp && tar -xvf s3fuse.tar.gz -C /tmp/s3
 
 	export CFLAGS=-I$cache_dir/usr/local/include
 	export CXXFLAGS=-I$cache_dir/usr/local/include
