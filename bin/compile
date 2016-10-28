@@ -37,8 +37,8 @@ if [ ! -f "$cache_dir/s3_built" ]; then
 	mkdir /tmp/s3
 	mkdir -pv $cache_dir
 
-	cd /tmp && tar -xvf fuse-2.9.7.tar.gz -C /tmp/fuse
-	cd /tmp && tar -xvf s3fuse.tar.gz -C /tmp/s3
+	cd /tmp && tar -xzvf fuse-2.9.7.tar.gz -C /tmp/fuse
+	cd /tmp && tar -xzvf s3fuse.tar.gz -C /tmp/s3
 
 	export CFLAGS=-I$cache_dir/usr/local/include
 	export CXXFLAGS=-I$cache_dir/usr/local/include
@@ -49,10 +49,6 @@ if [ ! -f "$cache_dir/s3_built" ]; then
 
 	touch $cache_dir/s3_built
 fi
-
-#if [ ! -f /app/$AWSMOUNTPOINT ]; then
-#    mkdir -pv /app/$AWSMOUNTPOINT
-#fi
 
 export S3_CMD=$cache_dir/s3fs/usr/local/bin/s3fs
 exit 0
