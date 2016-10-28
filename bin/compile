@@ -27,26 +27,41 @@ if [ ! -f "$cache_dir/s3_built" ]; then
 	export LD_RUN_PATH=$cache_dir/lib:$cache_dir/usr/lib:$LD_RUN_PATH
 	export PATH=$cache_dir/bin:$cache_dir/usr/bin:$cache_dir/usr/sbin:$cache_dir/usr/local/sbin:$cache_dir/usr/local/bin:$PATH
 
-	cd /tmp && curl -s -O https://codeload.github.com/libfuse/libfuse/tar.gz/fuse-2.9.7
-  mv /tmp/fuse-2.9.7 /tmp/fuse-2.9.7.tar.gz
-	cd /tmp && curl -s -O https://codeload.github.com/s3fs-fuse/s3fs-fuse/tar.gz/master
-	mv /tmp/master /tmp/s3fuse.tar.gz
+  echo "Retrieving fuse-2.9.7"
+	cd /tmp/ && curl -s -O https://codeload.github.com/libfuse/libfuse/tar.gz/fuse-2.9.7
+  mv -v /tmp/fuse-2.9.7 /tmp/fuse-2.9.7.tar.gz
+  echo "Retrieving s3fuse"
+	cd /tmp/ && curl -s -O https://codeload.github.com/s3fs-fuse/s3fs-fuse/tar.gz/master
+	mv -v /tmp/master /tmp/s3fuse.tar.gz
 
 	rm -rf /tmp/fuse
 	rm -rf /tmp/s3
-	mkdir /tmp/fuse
-	mkdir /tmp/s3
 	mkdir -pv $cache_dir
 
-	cd /tmp && tar -xvf fuse-2.9.7.tar.gz -C /tmp/fuse
-	cd /tmp && tar -xvf s3fuse.tar.gz -C /tmp/s3
+	tar -xvf /tmp/fuse-2.9.7.tar.gz -C /tmp
+  mv -v /tmp/libfuse-fuse-2.9.7 /tmp/fuse
+	tar -xvf /tmp/s3fuse.tar.gz -C /tmp/
+  mv -v /tmp/s3fs-fuse-master /tmp/s3
 
 	export CFLAGS=-I$cache_dir/usr/local/include
 	export CXXFLAGS=-I$cache_dir/usr/local/include
 	export LDFLAGS=-L$cache_dir/usr/local/lib
 
-	cd /tmp/fuse/* && ./configure --disable-kernel-module && make -j 2 && make DESTDIR=$cache_dir install
-	cd /tmp/s3/* && ./autogen.sh && ./configure  && make -j 2 && make DESTDIR=$cache_dir install 
+  echo "Compiling fuse"
+  cd /tmp/fuse/ && ls -hal
+  cd /tmp/fuse/ && ./makeconf.sh
+	cd /tmp/fuse/ \
+      && ./configure --disable-kernel-module \
+      && make -j 2 \
+      && make DESTDIR=$cache_dir install
+
+  echo "Compiling s3fs"
+  cd /tmp/s3/ && ls -hal
+  cd /tmp/s3/ && ./autogen.sh
+  cd /tmp/s3/ \
+      && ./configure \
+      && make -j 2 \
+      && make DESTDIR=$cache_dir install
 
 	touch $cache_dir/s3_built
 fi
