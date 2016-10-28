@@ -50,9 +50,9 @@ if [ ! -f "$cache_dir/s3_built" ]; then
 	touch $cache_dir/s3_built
 fi
 
-if [ ! -f /app/$AWSMOUNTPOINT ]; then
-    mkdir -pv /app/$AWSMOUNTPOINT
-fi
+#if [ ! -f /app/$AWSMOUNTPOINT ]; then
+#    mkdir -pv /app/$AWSMOUNTPOINT
+#fi
 
 export S3_CMD=$cache_dir/s3fs/usr/local/bin/s3fs
 exit 0
