@@ -1,7 +1,5 @@
 #!/bin/sh
 
-cat << EOF
----
-config_vars:
-  PATH: "/usr/bin:/usr/local/bin:/app/bin:/app/vendor/s3fs/usr/local/bin"
-EOF
+BUILD_DIR=$1
+
+echo "--- {}"

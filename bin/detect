@@ -1,3 +1,4 @@
 #!/bin/sh
 
+echo s3fs-fuse
 exit 0

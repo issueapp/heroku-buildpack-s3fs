@@ -1,70 +1,109 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-build_dir=$1
-cache_dir=$1/vendor/s3fs
-env_dir=$3
-export_env_dir() {
-  env_dir=$1
-  whitelist_regex=${2:-''}
-  blacklist_regex=${3:-'^(PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH)$'}
-  if [ -d "$env_dir" ]; then
-    for e in $(ls $env_dir); do
-      echo "$e" | grep -E "$whitelist_regex" | grep -qvE "$blacklist_regex" &&
-      export "$e=$(cat $env_dir/$e)"
-      :
-    done
+BUILD_DIR=$1
+CACHE_DIR=$2
+#ENV_DIR=$3
+
+BIN="$BUILD_DIR/bin/s3fs"
+VERSION=1.82
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+is_stale() {
+# $1 bin
+# $2 version
+  if [ -f "$1" -a -x "$1" ] && "$1" --version | grep -Fq "$2"; then
+    false
+  else
+    true
   fi
 }
 
-export_env_dir $env_dir
-rm -rvf $cache_dir/s3_built
-if [ ! -f "$cache_dir/s3_built" ]; then
-	export PREFIX=$cache_dir
-	export PKG_CONFIG_PATH=$cache_dir/usr/local/lib/pkgconfig
-	export CFLAGS=-I$cache_dir/usr/local/include
+fetch() {
+# $1 name
+# $2 version
+  local url cache_file build_dir
 
-	export LD_LIBRARY_PATH=$cache_dir/lib:$cache_dir/usr/local/lib:$cache_dir/usr/lib:$LD_LIBRARY_PATH
-	export LD_RUN_PATH=$cache_dir/lib:$cache_dir/usr/lib:$LD_RUN_PATH
-	export PATH=$cache_dir/bin:$cache_dir/usr/bin:$cache_dir/usr/sbin:$cache_dir/usr/local/sbin:$cache_dir/usr/local/bin:$PATH
+  echo "fetching ${1:?} ${2:?}" | indent
 
-  echo "Retrieving fuse-2.9.7"
-	cd /tmp/ && curl -s -O https://codeload.github.com/libfuse/libfuse/tar.gz/fuse-2.9.7
-  mv -v /tmp/fuse-2.9.7 /tmp/fuse-2.9.7.tar.gz
-  echo "Retrieving s3fuse"
-	cd /tmp/ && curl -s -O https://codeload.github.com/s3fs-fuse/s3fs-fuse/tar.gz/master
-	mv -v /tmp/master /tmp/s3fuse.tar.gz
+  cache_file="$CACHE_DIR/lib/$1-$2.tar.gz"
 
-	rm -rf /tmp/fuse
-	rm -rf /tmp/s3
-	mkdir -pv $cache_dir
+  if [ ! -f "$cache_file" ]; then
+    case "$1" in
+      gettext)
+        url="https://ftp.gnu.org/pub/gnu/gettext/$1-$2.tar.gz"
+        ;;
+      fuse)
+        url="https://github.com/libfuse/libfuse/archive/$1-$2.tar.gz"
+        ;;
+      s3fs)
+        url="https://github.com/s3fs-fuse/s3fs-fuse/archive/v$2.tar.gz"
+        ;;
+    esac
 
-	tar -xvf /tmp/fuse-2.9.7.tar.gz -C /tmp
-  mv -v /tmp/libfuse-fuse-2.9.7 /tmp/fuse
-	tar -xvf /tmp/s3fuse.tar.gz -C /tmp/
-  mv -v /tmp/s3fs-fuse-master /tmp/s3
+    curl -sSL ${url:?} --create-dirs -o "$cache_file"
+  fi
 
-	export CFLAGS=-I$cache_dir/usr/local/include
-	export CXXFLAGS=-I$cache_dir/usr/local/include
-	export LDFLAGS=-L$cache_dir/usr/local/lib
+  build_dir="/tmp/$1-$2"
 
-  echo "Compiling fuse"
-  cd /tmp/fuse/ && ls -hal
-  cd /tmp/fuse/ && ./makeconf.sh
-	cd /tmp/fuse/ \
-      && ./configure --disable-kernel-module \
-      && make -j 2 \
-      && make DESTDIR=$cache_dir install
+  if [ ! -d "$build_dir" ]; then
+    mkdir -p "$build_dir"
+    tar xz -C "$build_dir" --strip-components=1 "$cache_file"
+  fi
+}
 
-  echo "Compiling s3fs"
-  cd /tmp/s3/ && ls -hal
-  cd /tmp/s3/ && ./autogen.sh
-  cd /tmp/s3/ \
-      && ./configure \
-      && make -j 2 \
-      && make DESTDIR=$cache_dir install
+compile() {
+# $1 name
+# $2 version
+  local cache_dir cache_file build_dir
 
-	touch $cache_dir/s3_built
+  echo "compiling ${1:?} ${2:?}" | indent
+
+  cache_dir="$CACHE_DIR/bin"
+  cache_file="$cache_dir/$1"
+
+  if [ ! -f "$cache_file" ]; then
+    build_dir="/tmp/$1-$2"
+
+    cd "$build_dir"
+
+    case "$1" in
+      fuse)
+        ./makeconf.sh
+        ./configure --disable-kernel-module
+        ;;
+
+      s3fs|gettext)
+        ./autogen.sh
+        ./configure
+        ;;
+    esac
+
+    make -j 2
+    DESTDIR=${cache_dir} make install
+
+    cd -
+  fi
+
+  if [ ! -f "$BIN" ]; then
+    cp "$cache_file" "$BIN"
+  fi
+}
+
+
+# Main
+
+if is_stale "$BIN" "$VERSION"; then
+  fetch gettext 0.19.8.1
+  compile gettext 0.19.8.1
+
+  fetch fuse 2.9.7
+  compile fuse 2.9.7
+
+  fetch s3fs "$VERSION"
+  compile s3fs "$VERSION"
 fi
 
-export S3_CMD=$cache_dir/s3fs/usr/local/bin/s3fs
 exit 0
