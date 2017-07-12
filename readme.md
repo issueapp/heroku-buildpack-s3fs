@@ -1,3 +1,5 @@
+# Not working, please don't use!
+
 # Heroku Buildpack: s3fs
 
 Add support for s3fs-fuse.
