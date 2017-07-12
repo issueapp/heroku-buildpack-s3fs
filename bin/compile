@@ -4,11 +4,35 @@ BUILD_DIR=$1
 CACHE_DIR=$2
 #ENV_DIR=$3
 
-BIN="$BUILD_DIR/bin/s3fs"
+DIR="$BUILD_DIR/bin"
+BIN="$DIR/s3fs"
 VERSION=1.82
+
+intel() {
+  echo `whoami`
+  ls -l /
+}
+
+arrow() {
+  sed -u 's/^/-----> /'
+}
 
 indent() {
   sed -u 's/^/       /'
+}
+
+calc() {
+# $* any
+  awk "BEGIN{print $*}"
+}
+
+time() {
+# $1 function
+  local start stop
+  start=`date +%s.%N`
+  ${1:?}
+  stop=`date +%s.%N`
+  echo "Took `calc $stop - $start` seconds" | indent
 }
 
 is_stale() {
@@ -28,12 +52,12 @@ fetch() {
 
   echo "fetching ${1:?} ${2:?}" | indent
 
-  cache_file="$CACHE_DIR/lib/$1-$2.tar.gz"
+  cache_file="$CACHE_DIR/pkg/$1-$2.tar.gz"
 
   if [ ! -f "$cache_file" ]; then
     case "$1" in
-      gettext)
-        url="https://ftp.gnu.org/pub/gnu/gettext/$1-$2.tar.gz"
+      automake|gettext)
+        url="https://ftp.gnu.org/gnu/$1/$1-$2.tar.gz"
         ;;
       fuse)
         url="https://github.com/libfuse/libfuse/archive/$1-$2.tar.gz"
@@ -46,11 +70,11 @@ fetch() {
     curl -sSL ${url:?} --create-dirs -o "$cache_file"
   fi
 
-  build_dir="/tmp/$1-$2"
+  build_dir="/tmp/pkg/$1-$2"
 
   if [ ! -d "$build_dir" ]; then
     mkdir -p "$build_dir"
-    tar xz -C "$build_dir" --strip-components=1 "$cache_file"
+    tar -xz -C "$build_dir" --strip-components=1 -f "$cache_file" 
   fi
 }
 
@@ -65,45 +89,65 @@ compile() {
   cache_file="$cache_dir/$1"
 
   if [ ! -f "$cache_file" ]; then
-    build_dir="/tmp/$1-$2"
+    build_dir="/tmp/pkg/$1-$2"
 
     cd "$build_dir"
 
     case "$1" in
       fuse)
-        ./makeconf.sh
-        ./configure --disable-kernel-module
+        ./makeconf.sh || ./makeconf.sh
+        ./configure
         ;;
 
-      s3fs|gettext)
+      s3fs)
         ./autogen.sh
-        ./configure
+        LDFLAGS=/tmp/lib ./configure
         ;;
     esac
 
-    make -j 2
-    DESTDIR=${cache_dir} make install
+    make -j8
+    DESTDIR=/tmp make install
 
     cd -
   fi
+}
 
-  if [ ! -f "$BIN" ]; then
-    cp "$cache_file" "$BIN"
+install() {
+# $1 name
+  local bin
+
+  bin="$DIR/${1:?}"
+
+  if [ ! -f "$bin" ]; then
+    cp "$CACHE_DIR/bin/$1" "$bin"
   fi
 }
 
+main() {
+  echo "Installing s3fs" | arrow
 
-# Main
+  if is_stale "$BIN" "$VERSION"; then
+    export PATH=/tmp/bin:$PATH
 
-if is_stale "$BIN" "$VERSION"; then
-  fetch gettext 0.19.8.1
-  compile gettext 0.19.8.1
+    #fetch automake 1.15.1
+    #compile automake 1.15.1
 
-  fetch fuse 2.9.7
-  compile fuse 2.9.7
+    #fetch gettext 0.19.8.1
+    #compile gettext 0.19.8.1
 
-  fetch s3fs "$VERSION"
-  compile s3fs "$VERSION"
-fi
+    fetch fuse 2.9.7
+    cp /tmp/share/gettext/config.rpath /tmp/pkg/fuse-2.9.7/
+
+    #compile fuse 2.9.7
+
+    fetch s3fs "$VERSION"
+    #compile s3fs "$VERSION"
+
+    install s3fs
+  fi
+}
+
+intel
+time main
 
 exit 0
